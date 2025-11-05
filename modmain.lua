@@ -145,8 +145,14 @@ end
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 --[[
-思路：
-玩家连接服务器 -> 不纠正IP端口 -> 连接上了服务器 -> 立刻检查服务器下发的设置(服务器没有开纠正模组就进服开玩) -> 需要纠正/设置与上次记录的不同就纠正IP端口后重新连接 -> 进服开玩
+思路
+
+服务器开了纠正模组：
+玩家连接服务器 -> 不纠正IP端口 -> 连接上了服务器 -> 接收到模组设置 -> 立刻检查服务器下发的设置 -> 需要纠正就纠正IP端口后重新连接 -> 进服开玩
+玩家连接服务器 -> 不纠正IP端口 -> 连接上了服务器 -> 穿越到从世界 -> 使用新的IP端口 -> 连接上了从世界服务器 -> 接收到模组设置 -> 立刻检查服务器下发的设置 -> 需要纠正就纠正IP端口后重新连接 -> 进服开玩
+
+服务器没开纠正模组：
+玩家连接服务器 -> 不纠正IP端口 -> 连接上了服务器 -> 接收到模组设置 -> 服务器没开纠正模组 -> 进服开玩
 ]]
 
 -- 读取上次记录的模组配置
@@ -172,16 +178,19 @@ KnownModIndex.SetTempModConfigData = function(self, temp_mods_config_data, ...) 
                 for k,v in pairs(config_data) do
                     if k ~= "have_server_mod" and k ~= "" and v ~= "" and env[k] ~= v then
                         DEBUG_print("[强制纠正IP端口] 检测到服务器下发的纠正数据与我们上次记录的不同", k, "：上次记录的 = ", env[k], "服务器下发的 = ", v)
-                        need_reconnect = true
-                        env[k] = v
+                        env[k] = v -- 下面跑纠正函数会用到
                     end
                 end
 
-                -- 跑一遍纠正函数 看看是否需要纠正
-                if current_target_ip ~= fix_ip(current_target_ip) or current_target_port ~= fix_port(current_target_port) then
+                -- 跑一遍纠正函数 看看是否需要纠正。如果IP是域名 说明已经纠正过了
+                if (string.find(current_target_ip, "^%d+%.%d+%.%d+%.%d+$") and current_target_ip ~= fix_ip(current_target_ip)) or current_target_port ~= fix_port(current_target_port) then
                     DEBUG_print("[强制纠正IP端口] 检测到当前需要纠正IP端口")
-                    DEBUG_print("当前IP", current_target_ip, "需要纠正为", fix_ip(current_target_ip))
-                    DEBUG_print("当前端口", current_target_port, "需要纠正为", fix_port(current_target_port))
+                    if current_target_ip ~= fix_ip(current_target_ip) then
+                        DEBUG_print("当前IP", current_target_ip, "需要纠正为", fix_ip(current_target_ip))
+                    end
+                    if current_target_port ~= fix_port(current_target_port) then
+                        DEBUG_print("当前端口", current_target_port, "需要纠正为", fix_port(current_target_port))
+                    end
                     need_reconnect = true
                 end
 
@@ -191,13 +200,12 @@ KnownModIndex.SetTempModConfigData = function(self, temp_mods_config_data, ...) 
     end
 
     if need_reconnect then
-        DEBUG_print("[强制纠正IP端口] 强制重连服务器以进行纠正")
+        need_reconnect = false
+        DEBUG_print("[强制纠正IP端口] 强制重连服务器以进行纠正") -- 有风险，可能会崩溃
         TheNet:Disconnect(false) -- 断开连接服务器
-        if TheFrontEnd:GetActiveScreen().name == "ConnectingToGamePopup" then TheFrontEnd:PopScreen() end -- 关闭"连接中"窗口
+        if TheFrontEnd:GetActiveScreen().name == "ConnectingToGamePopup" then TheFrontEnd:PopScreen() end -- 关闭旧的"连接中"窗口
         c_connect(current_target_ip, master_port) -- 重新连接服务器(使用服务器设置的主世界端口重连 否则连不上)
-    end
-
-    if not need_reconnect then
+    else
         DEBUG_print("[强制纠正IP端口] 本次连接不需要强制断开重连以纠正IP端口")
     end
 end
