@@ -1,6 +1,6 @@
 ---@diagnostic disable: lowercase-global
 name = "强制纠正IP端口(服务端)"
-version = "0.2"
+version = "0.2.0"
 description = [[
 设置本模组需订阅【配置扩展】！
 本模组分为客户端部分和服务器部分

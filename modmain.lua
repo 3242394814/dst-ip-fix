@@ -5,7 +5,7 @@ GLOBAL.setmetatable(env, {
 })
 
 
-local client_modid = "dst-ip-fix" -- 客户端版模组ID
+local client_modid = "workshop-3600067779" -- 客户端版模组ID
 
 local function Auto_Enable_Mod()
     TheGlobalInstance:DoTaskInTime(10, function() -- 等10秒检查模组是否下载完成
