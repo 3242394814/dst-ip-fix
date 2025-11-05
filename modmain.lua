@@ -33,6 +33,55 @@ end
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+-- 判断是否为内网IP
+local function IsPrivateIP(ip)
+    if type(ip) ~= "string" then
+        return false
+    end
+
+    -- 去掉前后空格
+    ip = ip:match("^%s*(.-)%s*$")
+
+    -- 10.x.x.x
+    if string.find(ip, "^10%.") then
+        return true
+    end
+
+    -- 172.16.x.x ~ 172.31.x.x
+    if string.find(ip, "^172%.") then
+        local _, _, second = string.find(ip, "^172%.(%d+)")
+        if second then
+            local num = tonumber(second)
+            if num and num >= 16 and num <= 31 then
+                return true
+            end
+        end
+    end
+
+    -- 192.168.x.x
+    if string.find(ip, "^192%.168%.") then
+        return true
+    end
+
+    -- 127.x.x.x (本地回环)
+    if string.find(ip, "^127%.") then
+        return true
+    end
+
+    if string.find(ip, "localhost") then
+        return true
+    end
+
+    -- 169.254.x.x (自动私有地址)
+    if string.find(ip, "^169%.254%.") then
+        return true
+    end
+
+    return false
+end
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 -- 以下这些变量会被定义在模组env环境
 -- local master_port
 -- local original_ip_1, original_ip_2, original_ip_3
@@ -91,9 +140,9 @@ end
 ]]
 
 -- 读取上次记录的模组配置
-DEBUG_print("[强制纠正IP端口] 正在读取上次记录的配置")
+-- DEBUG_print("[强制纠正IP端口] 正在读取上次记录的配置")
 for k,v in pairs(RW_Data:LoadData()) do
-    if k ~= "" and v ~= "" then DEBUG_print(k,"=",v) end
+    -- if k ~= "" and v ~= "" then DEBUG_print(k,"=",v) end
     env[k] = v
 end
 
@@ -118,7 +167,7 @@ KnownModIndex.SetTempModConfigData = function(self, temp_mods_config_data, ...) 
             end
 
             -- 跑一遍纠正函数 看看是否需要纠正
-            if current_target_ip ~= "127.0.0.1" and current_target_ip ~= "localhost" then
+            if not IsPrivateIP(current_target_ip) then
                 if current_target_ip ~= fix_ip(current_target_ip) or current_target_port ~= fix_port(current_target_port) then
                     need_reconnect = true
                 end
@@ -158,7 +207,7 @@ if GLOBAL.NetworkProxy then
                 netid = nil
             end
 
-            if ip ~= "127.0.0.1" and ip ~= "localhost" then -- 自己连自己肯定不需要纠正
+            if not IsPrivateIP(ip) then -- 连接内网IP时不纠正
                 ip = fix_ip(ip)
                 port = fix_port(port)
             end
