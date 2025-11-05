@@ -19,11 +19,13 @@ local function Auto_Enable_Mod()
 end
 
 -- 游戏初始化后检测是否安装/启用客户端模组
-AddGamePostInit(function()
-    if not KnownModIndex:GetModInfo(client_modid) then
-        TheSim:SubscribeToMod(client_modid)
-        Auto_Enable_Mod()
-    elseif not KnownModIndex:IsModEnabledAny(client_modid) then
-        Auto_Enable_Mod()
+AddPrefabPostInit("world",function()
+    if TheNet:GetIsClient() then
+        if not KnownModIndex:GetModInfo(client_modid) then
+            TheSim:SubscribeToMod(client_modid)
+            Auto_Enable_Mod()
+        elseif not KnownModIndex:IsModEnabledAny(client_modid) then
+            Auto_Enable_Mod()
+        end
     end
 end)
