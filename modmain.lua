@@ -96,6 +96,15 @@ local function tonumber_or_nil(x)
 end
 
 local function fix_ip(ip)
+    if type(ip) ~= "string" then
+        return ip
+    end
+
+    -- 如果不是纯 IPv4（数字和点），说明是域名，直接返回
+    if not string.find(ip, "^%d+%.%d+%.%d+%.%d+$") then
+        return ip
+    end
+
     if original_ip_1 == "0.0.0.0" then
         return fix_ip_1
     elseif ip == original_ip_1 then
@@ -105,6 +114,7 @@ local function fix_ip(ip)
     elseif ip == original_ip_3 then
         return fix_ip_3
     end
+    return ip
 end
 
 -- 将原始端口与配置项比较，并替换为对应的纠正端口
@@ -147,30 +157,35 @@ for k,v in pairs(RW_Data:LoadData()) do
 end
 
 local current_target_ip, current_target_port, current_target_password -- 当前连接的房间IP、端口、密码(连接从世界时分配的是随机密码，会影响重连，所以用不上，缺点是可能需要玩家手动再输入一遍密码)
-local have_server_mod = false -- 服务器是否开启纠正模组
 local need_reconnect = false -- 是否需要纠正（重新连接服务器）
 local old_SetTempModConfigData = KnownModIndex.SetTempModConfigData
 KnownModIndex.SetTempModConfigData = function(self, temp_mods_config_data, ...) -- 进服/穿越世界时服务器会下发模组设置给客户端
     old_SetTempModConfigData(self, temp_mods_config_data, ...)
-    for modname, config_data in pairs(temp_mods_config_data) do
-        if modname == server_modid then
-            have_server_mod = true
-            RW_Data:SaveData(config_data)
 
-            -- 检查服务器下发的数据和上次记录的数据是否一致
-            for k,v in pairs(config_data) do
-                if k ~= "" and v ~= "" and env[k] ~= v then
-                    DEBUG_print("[强制纠正IP端口] 检测到服务器下发的纠正数据与我们上次记录的不同", k, "：上次记录的 = ", env[k], "服务器下发的 = ", v)
-                    need_reconnect = true
-                    env[k] = v
+    if not IsPrivateIP(current_target_ip) then
+        for modname, config_data in pairs(temp_mods_config_data) do
+            if modname == server_modid then
+                config_data.have_server_mod = true
+                RW_Data:SaveData(config_data)
+
+                -- 检查服务器下发的数据和上次记录的数据是否一致
+                for k,v in pairs(config_data) do
+                    if k ~= "have_server_mod" and k ~= "" and v ~= "" and env[k] ~= v then
+                        DEBUG_print("[强制纠正IP端口] 检测到服务器下发的纠正数据与我们上次记录的不同", k, "：上次记录的 = ", env[k], "服务器下发的 = ", v)
+                        need_reconnect = true
+                        env[k] = v
+                    end
                 end
-            end
 
-            -- 跑一遍纠正函数 看看是否需要纠正
-            if not IsPrivateIP(current_target_ip) then
+                -- 跑一遍纠正函数 看看是否需要纠正
                 if current_target_ip ~= fix_ip(current_target_ip) or current_target_port ~= fix_port(current_target_port) then
+                    DEBUG_print("[强制纠正IP端口] 检测到当前需要纠正IP端口")
+                    DEBUG_print("当前IP", current_target_ip, "需要纠正为", fix_ip(current_target_ip))
+                    DEBUG_print("当前端口", current_target_port, "需要纠正为", fix_port(current_target_port))
                     need_reconnect = true
                 end
+
+                break
             end
         end
     end
@@ -185,10 +200,6 @@ KnownModIndex.SetTempModConfigData = function(self, temp_mods_config_data, ...) 
     if not need_reconnect then
         DEBUG_print("[强制纠正IP端口] 本次连接不需要强制断开重连以纠正IP端口")
     end
-
-    -- if not have_server_mod then -- 如果服务器没开纠正模组
-    --     RW_Data:SaveData({}) -- 清空数据
-    -- end
 end
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -196,10 +207,9 @@ end
 if GLOBAL.NetworkProxy then
     local oldStartClient = GLOBAL.NetworkProxy.StartClient
     GLOBAL.NetworkProxy.StartClient = function(self, ip, port, id, password, netid, ...)
-        current_target_ip = ip
-        current_target_port = port
+        if not port or port == "" then port = 10999 end
 
-        if have_server_mod then
+        if RW_Data:LoadData().have_server_mod then
             DEBUG_print("[强制纠正IP端口] 原始IP", ip, "原始端口", port)
 
             if netid then
@@ -214,6 +224,17 @@ if GLOBAL.NetworkProxy then
 
             DEBUG_print("[强制纠正IP端口] 纠正后的IP", ip, "纠正后的端口", port)
         end
+
+        current_target_ip = ip
+        current_target_port = port
         return oldStartClient(self, ip, port, id, password, netid, ...)
     end
 end
+
+-- 回到主菜单时重置have_server_mod
+AddClassPostConstruct("screens/redux/mainscreen", function()
+    if InGamePlay() then return end
+    local config = RW_Data:LoadData()
+    config.have_server_mod = false
+    RW_Data:SaveData(config)
+end)
