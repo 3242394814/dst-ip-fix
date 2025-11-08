@@ -47,6 +47,7 @@ local function Auto_Enable_Mod()
             for _,v in pairs(modinfo.configuration_options) do
                 config_data[v.name] = GetModConfigData(v.name)
             end
+            config_data.have_server_mod = true
             RW_Data:SaveData(config_data)
 
          -- 未下载完成，再次尝试
