@@ -162,6 +162,7 @@ for k,v in pairs(RW_Data:LoadData()) do
     env[k] = v
 end
 
+local current_original_ip
 local current_target_ip, current_target_port, current_target_password -- 当前连接的房间IP、端口、密码(连接从世界时分配的是随机密码，会影响重连，所以用不上，缺点是可能需要玩家手动再输入一遍密码)
 local need_reconnect = false -- 是否需要纠正（重新连接服务器）
 local old_SetTempModConfigData = KnownModIndex.SetTempModConfigData
@@ -172,11 +173,12 @@ KnownModIndex.SetTempModConfigData = function(self, temp_mods_config_data, ...) 
         for modname, config_data in pairs(temp_mods_config_data) do
             if modname == server_modid then
                 config_data.have_server_mod = true
+                config_data.last_server_ip = current_original_ip
                 RW_Data:SaveData(config_data)
 
                 -- 检查服务器下发的数据和上次记录的数据是否一致
                 for k,v in pairs(config_data) do
-                    if k ~= "have_server_mod" and k ~= "" and v ~= "" and env[k] ~= v then
+                    if k ~= "have_server_mod" and k ~= "last_server_ip" and k ~= "" and env[k] ~= v then
                         DEBUG_print("[强制纠正IP端口] 检测到服务器下发的纠正数据与我们上次记录的不同", k, "：上次记录的 = ", env[k], "服务器下发的 = ", v)
                         env[k] = v -- 下面跑纠正函数会用到
                     end
@@ -208,6 +210,14 @@ KnownModIndex.SetTempModConfigData = function(self, temp_mods_config_data, ...) 
     else
         DEBUG_print("[强制纠正IP端口] 本次连接不需要强制断开重连以纠正IP端口")
     end
+
+    -- 如果服务器IP相同但关了纠正IP端口模组，则删除last_server_ip
+    local config = RW_Data:LoadData()
+    if not config.have_server_mod and config.last_server_ip == current_original_ip then
+        DEBUG_print("[强制纠正IP端口] 检测到服务器关闭了【强制纠正IP端口(服务端)】，删除last_server_ip记录")
+        config.last_server_ip = nil
+        RW_Data:SaveData(config)
+    end
 end
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -216,9 +226,12 @@ if GLOBAL.NetworkProxy then
     local oldStartClient = GLOBAL.NetworkProxy.StartClient
     GLOBAL.NetworkProxy.StartClient = function(self, ip, port, id, password, netid, ...)
         if not port or port == "" then port = 10999 end
+        current_original_ip = ip
 
-        if RW_Data:LoadData().have_server_mod then
+        local config = RW_Data:LoadData()
+        if config.have_server_mod or config.last_server_ip == ip then -- 如果服务器开启了纠正模组，或服务器IP和上次记录的IP一致(防止连都连不上, 无法判断是否开模组)，就使用纠正
             DEBUG_print("[强制纠正IP端口] 原始IP", ip, "原始端口", port)
+            RW_Data:SaveData(config)
 
             if netid then
                 DEBUG_print("[强制纠正IP端口] 将netid", netid, "删除！")
@@ -245,4 +258,8 @@ AddClassPostConstruct("screens/redux/mainscreen", function()
     local config = RW_Data:LoadData()
     config.have_server_mod = false
     RW_Data:SaveData(config)
+end)
+
+rawset(GLOBAL, "c_reset_ip_port_fix_conf", function()
+    RW_Data:SaveData({})
 end)

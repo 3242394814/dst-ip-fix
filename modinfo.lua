@@ -1,6 +1,6 @@
 ---@diagnostic disable: lowercase-global
 name = "强制纠正IP端口(客户端)"
-version = "0.1.5"
+version = "0.1.6"
 description = [[
 本模组需配合 强制纠正IP端口(服务端) 使用
 在进入了开启 强制纠正IP端口(服务端) 的房间时会自动订阅&开启此模组
