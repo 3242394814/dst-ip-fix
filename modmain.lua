@@ -49,8 +49,8 @@ local function Auto_Enable_Mod()
             end
             config_data.have_server_mod = true
             RW_Data:SaveData(config_data)
-
-         -- 未下载完成，再次尝试
+        else
+            -- 未下载完成，再次尝试
             TheSim:SubscribeToMod(client_modid)
             Auto_Enable_Mod()
         end
