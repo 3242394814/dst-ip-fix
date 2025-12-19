@@ -38,6 +38,7 @@ local function Auto_Enable_Mod()
     try_num = try_num + 1
     if try_num > 5 then return end
     TheGlobalInstance:DoTaskInTime(10, function() -- 等10秒检查模组是否下载完成
+        KnownModIndex:UpdateModInfo() -- 刷新模组列表
         if KnownModIndex:GetModInfo(client_modid) then -- 下载完成，启用模组
             print("[强制纠正IP端口(服务端)] 正在自动开启模组：强制纠正IP端口(客户端)")
             KnownModIndex:Enable(client_modid)
