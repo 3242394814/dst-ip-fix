@@ -6,6 +6,7 @@ GLOBAL.setmetatable(env, {
 
 local server_modid = "workshop-3487026153" -- 服务器模组ID
 local DEBUG_print = GetModConfigData("DEBUG_print") and print or function(...) end
+-- local UpdateText = rawget(_G, "UpdateText") or function(...) end
 
 ----------------------------------------------------------------读写文件--------------------------------------------------------------------------------------------------------------------------------
 
@@ -262,4 +263,9 @@ end)
 
 rawset(GLOBAL, "c_reset_ip_port_fix_conf", function()
     RW_Data:SaveData({})
+    if rawget(GLOBAL, "UpdateText") then
+        GLOBAL.UpdateText("[强制纠正IP端口] 已重置缓存数据")
+    else
+        print("[强制纠正IP端口] 已重置缓存数据")
+    end
 end)
