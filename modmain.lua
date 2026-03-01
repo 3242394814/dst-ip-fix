@@ -248,7 +248,7 @@ local function fix_ip_port(ip, port)
     return fixed_ip or ip, fixed_port or port, fixed
 end
 
-local NeedHookTheNetJoinServerResponse = false
+-- local NeedHookTheNetJoinServerResponse = false
 if GLOBAL.NetworkProxy then
     local oldStartClient = GLOBAL.NetworkProxy.StartClient
     GLOBAL.NetworkProxy.StartClient = function(self, ip, port, id, password, netid, ...)
@@ -266,16 +266,16 @@ if GLOBAL.NetworkProxy then
     end
 
     -- 从大厅进最终会使用到这个方法，所以HOOK这个方法
-    local oldJoinServerResponse = NetworkProxy.JoinServerResponse
-    NetworkProxy.JoinServerResponse = function(self, ...)
-        if NeedHookTheNetJoinServerResponse then
-            DEBUG_print("[强制纠正IP端口] 当前需要纠正IP端口！")
-            c_connect(current_original_ip, current_original_port) -- 现在压力给到NetworkProxy.StartClient
-            NeedHookTheNetJoinServerResponse = false
-            return
-        end
-        return oldJoinServerResponse(self, ...)
-    end
+    -- local oldJoinServerResponse = NetworkProxy.JoinServerResponse
+    -- NetworkProxy.JoinServerResponse = function(self, ...)
+    --     if NeedHookTheNetJoinServerResponse then
+    --         DEBUG_print("[强制纠正IP端口] 当前需要纠正IP端口！")
+    --         c_connect(current_original_ip, current_original_port) -- 现在压力给到NetworkProxy.StartClient
+    --         NeedHookTheNetJoinServerResponse = false
+    --         return
+    --     end
+    --     return oldJoinServerResponse(self, ...)
+    -- end
 end
 
 AddClassPostConstruct("screens/redux/serverlistingscreen", function(self)
@@ -283,16 +283,17 @@ AddClassPostConstruct("screens/redux/serverlistingscreen", function(self)
     self.Join = function(warnedOffline, warnedLanguage, warnedPaused, ...)
         local selected_index_actual = self.selected_index_actual -- 当前选中的服务器索引
         local sever_info = TheNet:GetServerListingFromActualIndex(selected_index_actual)
-        current_original_ip = sever_info and sever_info.ip
-        current_original_port = sever_info and sever_info.port
-        if current_original_ip and current_original_port then
-            DEBUG_print("[强制纠正IP端口] 当前从服务器列表进入的服务器IP端口为", current_original_ip, current_original_port)
+        current_target_ip = sever_info and sever_info.ip -- 给KnownModIndex.SetTempModConfigData部分使用
+        current_original_ip = current_target_ip
+        -- current_original_port = sever_info and sever_info.port
+        -- if current_original_ip and current_original_port then
+        --     DEBUG_print("[强制纠正IP端口] 当前从服务器列表进入的服务器IP端口为", current_original_ip, current_original_port)
 
-            local config = RW_Data:LoadData()
-            if config.last_server_ip == current_original_ip then
-                NeedHookTheNetJoinServerResponse = true
-            end
-        end
+        --     local config = RW_Data:LoadData()
+        --     if config.last_server_ip == current_original_ip then
+        --         NeedHookTheNetJoinServerResponse = true
+        --     end
+        -- end
 
         return old_Join(self, warnedOffline, warnedLanguage, warnedPaused, ...)
     end
