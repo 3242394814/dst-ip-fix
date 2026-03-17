@@ -243,9 +243,9 @@ local function fix_ip_port(ip, port)
         DEBUG_print("[强制纠正IP端口] 当前进入的服务器不需要纠正IP端口\n上个需要纠正IP端口的服务器IP：" .. tostring(config.last_server_ip) , "本次连接的服务器IP：", tostring(ip))
     end
 
-    current_target_ip = fixed_ip
-    current_target_port = fixed_port
-    return fixed_ip or ip, fixed_port or port, fixed
+    current_target_ip = fixed_ip or ip
+    current_target_port = fixed_port or port
+    return current_target_ip, current_target_port, fixed
 end
 
 -- local NeedHookTheNetJoinServerResponse = false
